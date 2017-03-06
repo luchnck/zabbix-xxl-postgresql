@@ -4,7 +4,8 @@ LABEL maintainer "Jan Garaj <info@monitoringartist.com>"
 # ZABBIX_VERSION=trunk tags/3.0.1 branches/dev/ZBXNEXT-1263-1
 
 ENV \
-  ZABBIX_VERSION=trunk \
+  ZABBIX_VERSION=tags/3.2.1 \
+  DB_engine=postgresql \
   ZS_enabled=true \
   ZA_enabled=true \
   ZW_enabled=true \
@@ -89,7 +90,7 @@ RUN \
   yum install -y --enablerepo=remi-php56 php-fpm \
        php-gd php-bcmath php-ctype php-xml php-xmlreader php-xmlwriter \
        php-session php-net-socket php-mbstring php-gettext php-cli \
-       php-mysqlnd php-opcache php-pdo php-snmp php-ldap && \
+       php-mysqlnd php-opcache php-pdo php-snmp php-ldap php-pgsql && \
   yum clean all && rm -rf /tmp/*
 ADD container-files-base /
 
@@ -101,7 +102,7 @@ RUN \
   yum install -y tar svn gcc automake make nmap traceroute iptstate wget \
               net-snmp-devel net-snmp-libs net-snmp net-snmp-perl iksemel \
               net-snmp-python net-snmp-utils java-1.8.0-openjdk \
-              java-1.8.0-openjdk-devel mariadb-devel libxml2-devel gettext \
+              java-1.8.0-openjdk-devel postgresql-devel mariadb-devel libxml2-devel gettext \
               libcurl-devel OpenIPMI-devel mysql iksemel-devel libssh2-devel \
               unixODBC unixODBC-devel mysql-connector-odbc postgresql-odbc \
               openldap-devel telnet net-tools snmptt sudo rubygems jq \
@@ -119,7 +120,7 @@ RUN \
   zabbix_revision=$(svn info svn://svn.zabbix.com/${ZABBIX_VERSION} |grep "Last Changed Rev"|awk '{print $4;}') && \
   sed -i "s/{ZABBIX_REVISION}/$zabbix_revision/g" include/version.h && \
   ./bootstrap.sh && \
-  ./configure --enable-server --enable-agent --with-mysql --enable-java \
+  ./configure --enable-server --enable-agent --with-postgresql --enable-java \
               --with-net-snmp --with-libcurl --with-libxml2 --with-openipmi \
               --enable-ipv6 --with-jabber --with-openssl --with-ssh2 \
               --enable-proxy --with-ldap --with-unixodbc && \

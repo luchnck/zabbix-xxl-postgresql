@@ -2,7 +2,7 @@
 // Zabbix GUI configuration file
 global $DB;
 
-$DB['TYPE']     = 'MYSQL';
+$DB['TYPE']     = 'POSTGRESQL';
 $DB['SERVER']   = 'ZS_DBHost';
 $DB['PORT']     = 'ZS_DBPort';
 $DB['DATABASE'] = 'ZS_DBName';

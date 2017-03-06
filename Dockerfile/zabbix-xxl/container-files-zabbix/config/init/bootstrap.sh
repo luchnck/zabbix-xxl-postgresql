@@ -150,32 +150,63 @@ if $ZS_enabled; then
   # wait 120sec for DB server initialization
   retry=24
   log "Waiting for database server"
-  until mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -e "exit" &>/dev/null
-  do
-    log "Waiting for database server, it's still not available"
-    retry=`expr $retry - 1`
-    if [ $retry -eq 0 ]; then
-      error "Database server is not available!"
-      exit 1
-    fi
-    sleep 5
-  done
-  log "Database server is available"
-
-  log "Checking if database exists or SQL import is required"
-  if ! mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -e "use ${ZS_DBName};" &>/dev/null; then
-    warning "Zabbix database doesn't exist. Installing and importing default settings"
-    log `create_db`
-    log "Database and user created, importing default SQL"
-    log `import_zabbix_db`
-    log "Import finished, starting"
-  else
-    log "Zabbix database exists, starting server"
-  fi
+  if [ -n "$DB_engine" ] | [ $DB_engine = "mariadb" ]
+        then
+        #if used default mariadb engine
+                until mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -e "exit" &>/dev/null
+                        do
+                                log "Waiting for database server, it's still not available"
+                                retry=`expr $retry - 1`
+                                if [ $retry -eq 0 ]; then
+                                        error "Database server is not available!"
+                                        exit 1
+                                fi
+                                sleep 5
+                        done
+                log "Database server is available"
+                log "Checking if database exists or SQL import is required"
+                if ! mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -e "use ${ZS_DBName};" &>/dev/null; then
+                        warning "Zabbix database doesn't exist. Installing and importing default settings"
+                        log `create_db`
+                        log "Database and user created, importing default SQL"
+                        log `import_zabbix_db`
+                        log "Import finished, starting"
+                else
+                        log "Zabbix database exists, starting server"
+                fi
+        #If used  postgres engine
+        elif [ "$DB_engine" = "postgresql" ]
+                then
+                until psql -d "postgresql://${ZS_DBUser}:${ZS_DBPassword}@${ZS_DBHost}:${ZS_DBPort}" -c "\q" &>/dev/null
+                        do
+                                log "Waiting for database server, it's still not available"
+                                retry=`expr $retry - 1`
+                                if [ $retry -eq 0 ]; then
+                                        error "Database server is not available!"
+                                        exit 1
+                                fi
+                                sleep 5
+                        done
+                log "Database server is available"
+                log "Checking if database exists or SQL import is required"
+                if ! psql -d "postgresql://${ZS_DBUser}:${ZS_DBPassword}@${ZS_DBHost}:${ZS_DBPort}" -c "\c ${ZS_DBName};" &>/dev/null
+                        then
+                                warning "Zabbix database doesn't exist. And init_db not implemented yet, please create db yourself"
+#                               log `create_db`
+#                               log "Database and user created, importing default SQL"
+#                               log `import_zabbix_db`
+#                               log "Import finished, starting"
+                        else
+                                log "Zabbix database exists, starting server"
+                fi
+        fi
 else
   # Zabbix server is disabled
   rm -rf /etc/supervisor.d/zabbix-server.conf
 fi
+
+
+
 
 if ! $ZA_enabled; then
   # Zabbix agent is disabled
