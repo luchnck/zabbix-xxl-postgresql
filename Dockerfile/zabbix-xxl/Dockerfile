@@ -4,7 +4,8 @@ LABEL maintainer "Jan Garaj <info@monitoringartist.com>"
 # ZABBIX_VERSION=trunk tags/3.0.1 branches/dev/ZBXNEXT-1263-1
 
 ENV \
-  ZABBIX_VERSION=trunk \
+  ZABBIX_VERSION=tags/3.2.1 \
+  DB_engine=posgresql \
   ZS_enabled=true \
   ZA_enabled=true \
   ZW_enabled=true \
@@ -59,7 +60,7 @@ ENV \
   XXL_updatechecker=true \
   XXL_zapix=false \
   XXL_grapher=false \
-  XXL_api=true \
+  XXL_api=false \
   XXL_apiuser=Admin \
   XXL_apipass=zabbix \
   XXL_analytics=true \
@@ -101,7 +102,7 @@ RUN \
   yum install -y tar svn gcc automake make nmap traceroute iptstate wget \
               net-snmp-devel net-snmp-libs net-snmp net-snmp-perl iksemel \
               net-snmp-python net-snmp-utils java-1.8.0-openjdk \
-              java-1.8.0-openjdk-devel mariadb-devel libxml2-devel gettext \
+              java-1.8.0-openjdk-devel postgresql-devel  mariadb-devel libxml2-devel gettext \
               libcurl-devel OpenIPMI-devel mysql iksemel-devel libssh2-devel \
               unixODBC unixODBC-devel mysql-connector-odbc postgresql-odbc \
               openldap-devel telnet net-tools snmptt sudo rubygems jq \
@@ -119,7 +120,7 @@ RUN \
   zabbix_revision=$(svn info svn://svn.zabbix.com/${ZABBIX_VERSION} |grep "Last Changed Rev"|awk '{print $4;}') && \
   sed -i "s/{ZABBIX_REVISION}/$zabbix_revision/g" include/version.h && \
   ./bootstrap.sh && \
-  ./configure --enable-server --enable-agent --with-mysql --enable-java \
+  ./configure --enable-server --enable-agent --with-${DB-engine} --enable-java \
               --with-net-snmp --with-libcurl --with-libxml2 --with-openipmi \
               --enable-ipv6 --with-jabber --with-openssl --with-ssh2 \
               --enable-proxy --with-ldap --with-unixodbc && \
@@ -128,7 +129,7 @@ RUN \
   make css && \
   make -j"$(nproc)" install && \
   mv /health/ /usr/local/src/zabbix/frontends/php/ && \
-  cp /usr/local/etc/web/zabbix.conf.php /usr/local/src/zabbix/frontends/php/conf/ && \
+  cp /usr/local/etc/web/zabbix.${DB_engine}.conf.php /usr/local/src/zabbix/frontends/php/conf/zabbix.conf.php && \
   wget https://github.com/schweikert/fping/archive/3.10.tar.gz && \
   tar -xvf 3.10.tar.gz && \
   cd fping-3.10/ && \
@@ -146,7 +147,7 @@ RUN \
   rm -rf 3.10.tar.gz && \
   cd /usr/local/src/zabbix/frontends/php && \
   locale/make_mo.sh && \
-  yum autoremove -y gettext svn gcc automake mariadb-devel \
+  yum autoremove -y gettext svn gcc automake mariadb-devel postgresql-devel \
                     java-1.8.0-openjdk-devel libxml2-devel libcurl-devel \
                     OpenIPMI-devel iksemel-devel rubygems kernel-headers && \
   yum install -y OpenIPMI-libs && \
@@ -161,7 +162,7 @@ RUN \
   mkdir -p /usr/lib/zabbix/modules && \
   mkdir -p /etc/zabbix/snmp/mibs && \
   rm -rf /usr/local/src/zabbix/[a,A,b,c,C,i,I,m,M,n,N,r,R,s,t,u,r,\.]* /usr/local/src/zabbix/depcomp /usr/local/src/zabbix/.svn && \
-  rm -rf /usr/local/src/zabbix/database/[i,M,o,p,s]* && \
+  rm -rf /usr/local/src/zabbix/database/[i,M,o,s]* && \
   rm -rf /tmp/*
   # TODO apply http://geofrogger.net/review/snmptt-hide-generic-part.patch
 
