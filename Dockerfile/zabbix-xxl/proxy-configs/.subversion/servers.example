@@ -1,0 +1,5 @@
+[global]
+http-proxy-host = <hostname>
+http-proxy-port = <port>
+http-proxy-username = <username>
+http-proxy-password = <password>

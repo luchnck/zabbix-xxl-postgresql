@@ -66,12 +66,13 @@ ENV \
   XXL_analytics=true \
   TERM=xterm
 
+
 # Layer: base
 RUN \
   yum clean all && \
   yum update -y && \
   yum install -y epel-release && \
-  sed -i -e "\|^https://\"http://|d" /etc/yum.repos.d/epel.repo && \
+  sed -i -e "s/https:\/\//http:\/\//g" /etc/yum.repos.d/epel.repo && \
   yum clean all && \
   yum install -y supervisor && \
   yum install -y http://nginx.org/packages/centos/7/noarch/RPMS/nginx-release-centos-7-0.el7.ngx.noarch.rpm && \
