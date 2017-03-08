@@ -94,21 +94,20 @@ RUN \
   yum clean all && rm -rf /tmp/*
 ADD container-files-base /
 
-# Layer: zabbix
 COPY container-files-zabbix /
 RUN \
   yum clean all && \
   yum update -y && \
   yum install -y tar svn gcc automake make nmap traceroute iptstate wget \
-              net-snmp-devel net-snmp-libs net-snmp net-snmp-perl iksemel \
-              net-snmp-python net-snmp-utils java-1.8.0-openjdk \
-              java-1.8.0-openjdk-devel postgresql-devel mariadb-devel libxml2-devel gettext \
-              libcurl-devel OpenIPMI-devel mysql iksemel-devel libssh2-devel \
-              unixODBC unixODBC-devel mysql-connector-odbc postgresql-odbc \
-              openldap-devel telnet net-tools snmptt sudo rubygems jq \
-              openssh-clients python-httplib2 python-simplejson \
-              libevent-devel openldap-clients && \
- `# reinstall glibc for locales` \
+	    net-snmp-devel net-snmp-libs net-snmp net-snmp-perl iksemel \
+	    net-snmp-python net-snmp-utils java-1.8.0-openjdk \
+	    java-1.8.0-openjdk-devel postgresql-devel mariadb-devel libxml2-devel gettext \
+	    libcurl-devel OpenIPMI-devel mysql iksemel-devel libssh2-devel \
+	    unixODBC unixODBC-devel mysql-connector-odbc postgresql-odbc \
+	    openldap-devel telnet net-tools snmptt sudo rubygems jq \
+	    openssh-clients python-httplib2 python-simplejson \
+	    libevent-devel openldap-clients && \
+  `# reinstall glibc for locales` \
   yum -y -q reinstall glibc-common && \
   cp /usr/local/etc/zabbix_agentd.conf /tmp && \
   svn co svn://svn.zabbix.com/${ZABBIX_VERSION} /usr/local/src/zabbix && \
@@ -116,7 +115,11 @@ RUN \
   DATE=`date +%Y-%m-%d` && \
   sed -i "s/ZABBIX_VERSION.*'\(.*\)'/ZABBIX_VERSION', '\1 ($DATE)'/g" frontends/php/include/defines.inc.php && \
   sed -i "s/ZABBIX_VERSION_RC.*\"\(.*\)\"/ZABBIX_VERSION_RC \"\1 (${DATE})\"/g" include/version.h && \
-  sed -i "s/String VERSION =.*\"\(.*\)\"/String VERSION = \"\1 (${DATE})\"/g" src/zabbix_java/src/com/zabbix/gateway/GeneralInformation.java && \
+  sed -i "s/String VERSION =.*\"\(.*\)\"/String VERSION = \"\1 (${DATE})\"/g" src/zabbix_java/src/com/zabbix/gateway/GeneralInformation.java 
+
+# Layer: zabbix-postgres
+RUN \
+  cd /usr/local/src/zabbix && \
   zabbix_revision=$(svn info svn://svn.zabbix.com/${ZABBIX_VERSION} |grep "Last Changed Rev"|awk '{print $4;}') && \
   sed -i "s/{ZABBIX_REVISION}/$zabbix_revision/g" include/version.h && \
   ./bootstrap.sh && \
@@ -128,8 +131,45 @@ RUN \
   gem install sass && \
   make css && \
   make -j"$(nproc)" install && \
+  mv /usr/local/sbin/zabbix_server /usr/local/sbin/zabbix_server_postgresql 
+  # TODO apply http://geofrogger.net/review/snmptt-hide-generic-part.patch
+
+# Layer: zabbix-mariadb
+RUN \
+  cd /usr/local/src/zabbix && \
+  zabbix_revision=$(svn info svn://svn.zabbix.com/${ZABBIX_VERSION} |grep "Last Changed Rev"|awk '{print $4;}') && \
+  sed -i "s/{ZABBIX_REVISION}/$zabbix_revision/g" include/version.h && \
+  ./bootstrap.sh && \
+  ./configure --enable-server --enable-agent --with-mysql --enable-java \
+              --with-net-snmp --with-libcurl --with-libxml2 --with-openipmi \
+              --enable-ipv6 --with-jabber --with-openssl --with-ssh2 \
+              --enable-proxy --with-ldap --with-unixodbc && \
+  make -j"$(nproc)" dbschema && \
+  gem install sass && \
+  make css && \
+  make -j"$(nproc)" install && \
+  mv /usr/local/sbin/zabbix_server /usr/local/sbin/zabbix_server_mysql
+ 
+RUN \ 
   mv /health/ /usr/local/src/zabbix/frontends/php/ && \
   cp /usr/local/etc/web/zabbix.conf.php /usr/local/src/zabbix/frontends/php/conf/ && \
+  cd /usr/local/src/zabbix/frontends/php && \
+  locale/make_mo.sh && \
+  yum autoremove -y gettext svn gcc automake mariadb-devel \
+                    java-1.8.0-openjdk-devel libxml2-devel libcurl-devel \
+                    OpenIPMI-devel iksemel-devel rubygems kernel-headers && \
+  yum install -y OpenIPMI-libs && \
+  chmod +x /config/bootstrap.sh && \
+  chmod +x /config/ds.sh && \
+  chmod +x /usr/local/src/zabbix/misc/snmptrap/zabbix_trap_receiver.pl && \
+  chmod +x /usr/share/snmptt/snmptthandler-embedded && \
+  sed -i -e "s/Defaults    requiretty.*/ #Defaults    requiretty/g" /etc/sudoers  && \
+  rm -rf /usr/local/src/zabbix/[a,A,b,c,C,i,I,m,M,n,N,r,R,s,t,u,r,\.]* /usr/local/src/zabbix/depcomp /usr/local/src/zabbix/.svn && \
+  rm -rf /usr/local/src/zabbix/database/[i,M,o,s]*
+
+# Layer: fping compile
+RUN \
+  yum install -y wget gcc automake make && \
   wget https://github.com/schweikert/fping/archive/3.10.tar.gz && \
   tar -xvf 3.10.tar.gz && \
   cd fping-3.10/ && \
@@ -144,28 +184,14 @@ RUN \
   cd .. && \
   cp -f /tmp/zabbix_agentd.conf /usr/local/etc/ && \
   rm -rf fping-3.10 && \
-  rm -rf 3.10.tar.gz && \
-  cd /usr/local/src/zabbix/frontends/php && \
-  locale/make_mo.sh && \
-  yum autoremove -y gettext svn gcc automake mariadb-devel \
-                    java-1.8.0-openjdk-devel libxml2-devel libcurl-devel \
-                    OpenIPMI-devel iksemel-devel rubygems kernel-headers && \
-  yum install -y OpenIPMI-libs && \
-  chmod +x /config/bootstrap.sh && \
-  chmod +x /config/ds.sh && \
-  chmod +x /usr/local/src/zabbix/misc/snmptrap/zabbix_trap_receiver.pl && \
-  chmod +x /usr/share/snmptt/snmptthandler-embedded && \
-  sed -i -e "s/Defaults    requiretty.*/ #Defaults    requiretty/g" /etc/sudoers && \
+  rm -rf 3.10.tar.gz && \ 
+  rm -rf /tmp/* && \
   yum clean all && \
   mkdir -p /usr/local/share/ssl/certs && \
   mkdir -p /usr/local/share/ssl/keys && \
   mkdir -p /usr/lib/zabbix/modules && \
-  mkdir -p /etc/zabbix/snmp/mibs && \
-  rm -rf /usr/local/src/zabbix/[a,A,b,c,C,i,I,m,M,n,N,r,R,s,t,u,r,\.]* /usr/local/src/zabbix/depcomp /usr/local/src/zabbix/.svn && \
-  rm -rf /usr/local/src/zabbix/database/[i,M,o,p,s]* && \
-  rm -rf /tmp/*
-  # TODO apply http://geofrogger.net/review/snmptt-hide-generic-part.patch
-
+  mkdir -p /etc/zabbix/snmp/mibs 
+  
 # Layer: zabbix-xxl
 COPY container-files-zabbix-xxl /
 RUN \
