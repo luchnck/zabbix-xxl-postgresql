@@ -36,6 +36,7 @@ interactive() {
             luchnck/zabbix-xxl-with-postgresql \
 	    /bin/bash
 };
+
  
 if $(docker ps -a | grep "zabbix ")
 	then 
