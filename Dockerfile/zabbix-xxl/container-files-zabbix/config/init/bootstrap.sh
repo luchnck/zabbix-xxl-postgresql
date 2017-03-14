@@ -224,11 +224,11 @@ if $ZS_enabled; then
                 log "Checking if database exists or SQL import is required"
                 if ! psql -d "postgresql://${ZS_DBUser}:${ZS_DBPassword}@${ZS_DBHost}:${ZS_DBPort}" -c "\c ${ZS_DBName};" &>/dev/null
                         then
-                                warning "Zabbix database doesn't exist. And init_db not implemented yet, please create db yourself"
-#                               log `create_db`
-#                               log "Database and user created, importing default SQL"
-#                               log `import_zabbix_db`
-#                               log "Import finished, starting"
+                                warning "Zabbix database doesn't exist. Creating DB"
+                                log `create_db`
+                                log "Database and user created, importing default SQL"
+                                log `import_zabbix_db`
+                                log "Import finished, starting"
                         else
                                 log "Zabbix database exists, starting server"
                 fi
