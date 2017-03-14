@@ -2,8 +2,10 @@
 ZABBIX_SERVER_BIN=zabbix_server_mysql
 if [ $DB_engine=postgres ] 
 	then  
-	ZABBIX_SERVER_BIN=zabbix_server_postrgresql
+	ZABBIX_SERVER_BIN=zabbix_server_postgresql
 fi
+
+export ZABBIX_SERVER_BIN=$ZABBIX_SERVER_BIN
 
 set -eu
 export TERM=xterm
