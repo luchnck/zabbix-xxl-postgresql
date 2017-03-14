@@ -1,9 +1,11 @@
 #!/bin/bash
+tag=latest
+
 
 daemonized() {
 	docker run \
 	    -d \
-	    --name zabbix \
+	    --name zabbix-app \
 	    -p 80:80 \
 	    -p 10051:10051 \
 	    -v /etc/localtime:/etc/localtime:ro \
@@ -15,13 +17,13 @@ daemonized() {
 	    --env="ZS_DBUser=postgres" \
 	    --env="ZS_DBPassword=postgres" \
 	    --env="ZS_DBPort=5432" \
-	    luchnck/zabbix-xxl-with-postgresql 
+	    luchnck/zabbix-xxl-postgresql:$1 && echo container started successifully
 };
 
 interactive() {
 	docker run \
             -ti \
-            --name zabbix \
+            --name zabbix-app \
             -p 80:80 \
             -p 10051:10051 \
             -v /etc/localtime:/etc/localtime:ro \
@@ -33,22 +35,42 @@ interactive() {
             --env="ZS_DBUser=postgres" \
             --env="ZS_DBPassword=postgres" \
             --env="ZS_DBPort=5432" \
-            luchnck/zabbix-xxl-with-postgresql \
+            luchnck/zabbix-xxl-postgresql:$1 \
 	    /bin/bash
 };
- 
-if $(docker ps -a | grep "zabbix ")
-	then 
-		docker rm -f zabbix
-		echo "container removed forcedly"
-fi
+
+usage() {
+	echo " usage is \'./start-srv-container TAG mode\'"
+	echo 'TAG - docker image tag (default latest)'
+	echo 'mode - i(interactive), d(daemonized - default)'
+};
+
 
 if [ -n $1 ]
 	then
-		case $1 in
-		i) interactive
+		tag=$1
+fi
+
+if docker ps -a | grep "zabbix-app"
+	then 
+		docker rm -f zabbix-app
+		echo "container removed forcedly"
+fi
+
+if [ -n $2 ]
+	then
+		case "$2" in
+		i)if ! interactive $tag
+			then
+			  usage
+		  fi
 		;;
-		*) daemonized
+		*)if ! daemonized $tag 
+			then
+			  usage
+		  fi
 		;;
 		esac	
 fi
+
+

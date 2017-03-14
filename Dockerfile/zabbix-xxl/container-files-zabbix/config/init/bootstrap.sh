@@ -1,4 +1,9 @@
 #!/bin/sh
+ZABBIX_SERVER_BIN=zabbix_server_mysql
+if [ $DB_engine=postgres ] 
+	then  
+	ZABBIX_SERVER_BIN=zabbix_server_postrgresql
+fi
 
 set -eu
 export TERM=xterm
@@ -70,6 +75,9 @@ update_config() {
     echo "${reg}=${val}" >> /usr/local/etc/zabbix_server.conf
     sed -i "s#ZS_${reg}#${val}#g" /usr/local/src/zabbix/frontends/php/conf/zabbix.conf.php
   done
+
+  # fix multidatabase support on web interface
+  [ $DB_engine=postgresql ] && sed -i "s/\$DB\['TYPE'\].*$/\$DB\['TYPE'\]\t= 'POSTGRESQL';/" /usr/local/src/zabbix/frontends/php/conf/zabbix.conf.php
 
   # ^ZA_: /usr/local/etc/zabbix_agentd.conf
   export ZA_Hostname_e=$(echo ${ZA_Hostname} | sed -e 's/ /\\\ /g')
@@ -307,6 +315,6 @@ if ! $SNMPTRAP_enabled; then
 fi
 
 # Zabbix version detection
-export ZABBIX_VERSION=$(zabbix_server -V | grep Zabbix | awk '{print $3}')
+export ZABBIX_VERSION=$($ZABBIX_SERVER_BIN -V | grep Zabbix | awk '{print $3}')
 
 log "Starting Zabbix version $ZABBIX_VERSION"
