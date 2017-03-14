@@ -144,6 +144,7 @@ Default container variables or default Zabbix are used:
 | PHP_max_input_time | 300 |
 | PHP_memory_limit | 128M |
 | PHP_error_reporting | E_ALL |
+| DB_engine | mysql |
 | ZS_LogType | console  |
 | ZS_PidFile | /var/run/zabbix_server.pid  |
 | ZS_User | zabbix |

@@ -1,6 +1,6 @@
 #!/bin/sh
 ZABBIX_SERVER_BIN=zabbix_server_mysql
-if [ $DB_engine=postgres ] 
+if [ $DB_engine=postgresql ] 
 	then  
 	ZABBIX_SERVER_BIN=zabbix_server_postgresql
 fi
