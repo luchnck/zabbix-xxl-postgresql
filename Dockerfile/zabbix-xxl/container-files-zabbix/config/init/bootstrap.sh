@@ -29,16 +29,37 @@ warning() {
 error() {
   echo "${bold}${red}[ERROR `date +'%T'`]${reset} ${red}$@${reset}";
 }
+
 create_db() {
-  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -e "CREATE DATABASE IF NOT EXISTS ${ZS_DBName} CHARACTER SET utf8;"
-  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -e "GRANT ALL ON ${ZS_DBName}.* TO '${ZS_DBUser}'@'%' identified by '${ZS_DBPassword}';"
-  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -e "flush privileges;"
+  case $DB_engine in
+  	postgresql)
+	  psql -d "postgresql://${ZS_DBUser}:${ZS_DBPassword}@${ZS_DBHost}:${ZS_DBPort}" -c "create database ${ZS_DBName};" 	
+	;;
+	
+	*) 
+	  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -e "CREATE DATABASE IF NOT EXISTS ${ZS_DBName} CHARACTER SET utf8;"
+ 	  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -e "GRANT ALL ON ${ZS_DBName}.* TO '${ZS_DBUser}'@'%' identified by '${ZS_DBPassword}';"
+  	  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -e "flush privileges;"
+	;;
+  esac
 }
+
 import_zabbix_db() {
-  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -D ${ZS_DBName} < ${ZABBIX_SQL_DIR}/schema.sql
-  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -D ${ZS_DBName} < ${ZABBIX_SQL_DIR}/images.sql
-  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -D ${ZS_DBName} < ${ZABBIX_SQL_DIR}/data.sql
+  case $DB_engine in
+  	postgresql)
+ 	  psql -d "postgresql://${ZS_DBUser}:${ZS_DBPassword}@${ZS_DBHost}:${ZS_DBPort}/${ZS_DBName}" < ${ZABBIX_SQL_DIR}/schema.sql
+	  psql -d "postgresql://${ZS_DBUser}:${ZS_DBPassword}@${ZS_DBHost}:${ZS_DBPort}/${ZS_DBName}" < ${ZABBIX_SQL_DIR}/images.sql
+	  psql -d "postgresql://${ZS_DBUser}:${ZS_DBPassword}@${ZS_DBHost}:${ZS_DBPort}/${ZS_DBName}" < ${ZABBIX_SQL_DIR}/data.sql
+	;;
+
+	*)
+	  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -D ${ZS_DBName} < ${ZABBIX_SQL_DIR}/schema.sql
+	  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -D ${ZS_DBName} < ${ZABBIX_SQL_DIR}/images.sql
+	  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -D ${ZS_DBName} < ${ZABBIX_SQL_DIR}/data.sql
+	;;
+  esac
 }
+
 create_proxy_db() {
   mysql -u ${ZP_DBUser} -p${ZP_DBPassword} -h ${ZP_DBHost} -P ${ZP_DBPort} -e "CREATE DATABASE IF NOT EXISTS ${ZP_DBName} CHARACTER SET utf8;"
   mysql -u ${ZP_DBUser} -p${ZP_DBPassword} -h ${ZP_DBHost} -P ${ZP_DBPort} -e "GRANT ALL ON ${ZP_DBName}.* TO '${ZP_DBUser}'@'%' identified by '${ZP_DBPassword}';"
@@ -124,6 +145,8 @@ update_config() {
 ####################### End of default settings #######################
 # Zabbix default sql files
 ZABBIX_SQL_DIR="/usr/local/src/zabbix/database/mysql"
+[ $DB_engine=postgresql ] && ZABBIX_SQL_DIR="/usr/local/src/zabbix/database/postgresql"
+
 # load DB config from custom config file if exist
 if [ -f /etc/custom-config/zabbix_server.conf ]; then
   FZS_DBPassword=$(grep ^DBPassword= /etc/custom-config/zabbix_server.conf | awk -F= '{print $2}')
