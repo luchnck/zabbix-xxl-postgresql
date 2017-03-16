@@ -91,7 +91,16 @@ fix_permissions() {
 }
 update_config() {
   # ^ZS_: /usr/local/etc/zabbix_server.conf
-  > /usr/local/etc/zabbix_server.conf
+  if [ -f /etc/custom-config/php-zabbix.ini ]; then
+    cp -f /etc/custom-config/php-zabbix.ini /etc/php.d/zz-zabbix.ini
+  fi
+ 
+  if [ -f /etc/custom-config/zabbix_server.conf ]; then
+    cp -f /etc/custom-config/zabbix_server.conf /usr/local/etc/zabbix_server.conf
+  else
+    touch /usr/local/etc/zabbix_server.conf
+  fi
+  
   for i in $( printenv | grep ^ZS_ | grep -v '^ZS_enabled' | awk -F'=' '{print $1}' | sort -rn ); do
     reg=$(echo ${i} | sed 's|^ZS_||' | sed -E "s/_[0-9]+$//")
     val=$(echo ${!i})
@@ -135,12 +144,6 @@ update_config() {
     sed -i "/ZBX_GRAPH_FONT_NAME/c\define('ZBX_GRAPH_FONT_NAME','ipagp');" /usr/local/src/zabbix/frontends/php/include/defines.inc.php
   fi
 
-  if [ -f /etc/custom-config/php-zabbix.ini ]; then
-    cp -f /etc/custom-config/php-zabbix.ini /etc/php.d/zz-zabbix.ini
-  fi
-  if [ -f /etc/custom-config/zabbix_server.conf ]; then
-    cp -f /etc/custom-config/zabbix_server.conf /usr/local/etc/zabbix_server.conf
-  fi
 }
 ####################### End of default settings #######################
 # Zabbix default sql files
