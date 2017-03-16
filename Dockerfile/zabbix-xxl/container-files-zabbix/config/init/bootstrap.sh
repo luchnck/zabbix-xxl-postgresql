@@ -61,12 +61,29 @@ import_zabbix_db() {
 }
 
 create_proxy_db() {
-  mysql -u ${ZP_DBUser} -p${ZP_DBPassword} -h ${ZP_DBHost} -P ${ZP_DBPort} -e "CREATE DATABASE IF NOT EXISTS ${ZP_DBName} CHARACTER SET utf8;"
-  mysql -u ${ZP_DBUser} -p${ZP_DBPassword} -h ${ZP_DBHost} -P ${ZP_DBPort} -e "GRANT ALL ON ${ZP_DBName}.* TO '${ZP_DBUser}'@'%' identified by '${ZP_DBPassword}';"
-  mysql -u ${ZP_DBUser} -p${ZP_DBPassword} -h ${ZP_DBHost} -P ${ZP_DBPort} -e "flush privileges;"
+   case $DB_engine in
+  	postgresql)
+	  psql -d "postgresql://${ZP_DBUser}:${ZP_DBPassword}@${ZP_DBHost}:${ZP_DBPort}" -c "create database ${ZP_DBName};" 	
+	;;
+	
+	*) 
+	  mysql -u ${ZP_DBUser} -p${ZP_DBPassword} -h ${ZP_DBHost} -P ${ZP_DBPort} -e "CREATE DATABASE IF NOT EXISTS ${ZP_DBName} CHARACTER SET utf8;"
+ 	  mysql -u ${ZP_DBUser} -p${ZP_DBPassword} -h ${ZP_DBHost} -P ${ZP_DBPort} -e "GRANT ALL ON ${ZP_DBName}.* TO '${ZP_DBUser}'@'%' identified by '${ZP_DBPassword}';"
+  	  mysql -u ${ZP_DBUser} -p${ZP_DBPassword} -h ${ZP_DBHost} -P ${ZP_DBPort} -e "flush privileges;"
+	;;
+  esac
 }
+
 import_zabbix_proxy_db() {
-  mysql -u ${ZP_DBUser} -p${ZP_DBPassword} -h ${ZP_DBHost} -P ${ZP_DBPort} -D ${ZP_DBName} < ${ZABBIX_SQL_DIR}/schema.sql
+  case $DB_engine in
+  	postgresql)
+	  psql -d "postgresql://${ZP_DBUser}:${ZP_DBPassword}@${ZP_DBHost}:${ZP_DBPort}/${ZP_DBName}" < ${ZABBIX_SQL_DIR}/schema.sql
+	;;
+	
+	*)
+  	  mysql -u ${ZP_DBUser} -p${ZP_DBPassword} -h ${ZP_DBHost} -P ${ZP_DBPort} -D ${ZP_DBName} < ${ZABBIX_SQL_DIR}/schema.sql
+	;;
+  esac
 }
 logging() {
   mkdir -p /var/log/zabbix
