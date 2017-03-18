@@ -71,7 +71,7 @@ RUN \
   yum clean all && \
   yum update -y && \
   yum install -y epel-release && \
-  sed -i -e "\|^https://\"http://|d" /etc/yum.repos.d/epel.repo && \
+  sed -i -e "s/https:/http:/g" /etc/yum.repos.d/epel.repo && \
   yum clean all && \
   yum install -y supervisor && \
   yum install -y http://nginx.org/packages/centos/7/noarch/RPMS/nginx-release-centos-7-0.el7.ngx.noarch.rpm && \
@@ -115,10 +115,7 @@ RUN \
   DATE=`date +%Y-%m-%d` && \
   sed -i "s/ZABBIX_VERSION.*'\(.*\)'/ZABBIX_VERSION', '\1 ($DATE)'/g" frontends/php/include/defines.inc.php && \
   sed -i "s/ZABBIX_VERSION_RC.*\"\(.*\)\"/ZABBIX_VERSION_RC \"\1 (${DATE})\"/g" include/version.h && \
-  sed -i "s/String VERSION =.*\"\(.*\)\"/String VERSION = \"\1 (${DATE})\"/g" src/zabbix_java/src/com/zabbix/gateway/GeneralInformation.java 
-
-# Layer: zabbix-postgres
-RUN \
+  sed -i "s/String VERSION =.*\"\(.*\)\"/String VERSION = \"\1 (${DATE})\"/g" src/zabbix_java/src/com/zabbix/gateway/GeneralInformation.java && \
   cd /usr/local/src/zabbix && \
   zabbix_revision=$(svn info svn://svn.zabbix.com/${ZABBIX_VERSION} |grep "Last Changed Rev"|awk '{print $4;}') && \
   sed -i "s/{ZABBIX_REVISION}/$zabbix_revision/g" include/version.h && \
@@ -131,11 +128,7 @@ RUN \
   gem install sass && \
   make css && \
   make -j"$(nproc)" install && \
-  mv /usr/local/sbin/zabbix_server /usr/local/sbin/zabbix_server_postgresql 
-  # TODO apply http://geofrogger.net/review/snmptt-hide-generic-part.patch
-
-# Layer: zabbix-mariadb
-RUN \
+  mv /usr/local/sbin/zabbix_server /usr/local/sbin/zabbix_server_postgresql && \ 
   cd /usr/local/src/zabbix && \
   zabbix_revision=$(svn info svn://svn.zabbix.com/${ZABBIX_VERSION} |grep "Last Changed Rev"|awk '{print $4;}') && \
   sed -i "s/{ZABBIX_REVISION}/$zabbix_revision/g" include/version.h && \
@@ -148,9 +141,7 @@ RUN \
   gem install sass && \
   make css && \
   make -j"$(nproc)" install && \
-  mv /usr/local/sbin/zabbix_server /usr/local/sbin/zabbix_server_mysql
- 
-RUN \ 
+  mv /usr/local/sbin/zabbix_server /usr/local/sbin/zabbix_server_mysql && \
   mv /health/ /usr/local/src/zabbix/frontends/php/ && \
   cp /usr/local/etc/web/zabbix.conf.php /usr/local/src/zabbix/frontends/php/conf/ && \
   cd /usr/local/src/zabbix/frontends/php && \
@@ -165,10 +156,7 @@ RUN \
   chmod +x /usr/share/snmptt/snmptthandler-embedded && \
   sed -i -e "s/Defaults    requiretty.*/ #Defaults    requiretty/g" /etc/sudoers  && \
   rm -rf /usr/local/src/zabbix/[a,A,b,c,C,i,I,m,M,n,N,r,R,s,t,u,r,\.]* /usr/local/src/zabbix/depcomp /usr/local/src/zabbix/.svn && \
-  rm -rf /usr/local/src/zabbix/database/[i,M,o,s]*
-
-# Layer: fping compile
-RUN \
+  rm -rf /usr/local/src/zabbix/database/[i,M,o,s]* && \
   yum install -y wget gcc automake make && \
   wget https://github.com/schweikert/fping/archive/3.10.tar.gz && \
   tar -xvf 3.10.tar.gz && \

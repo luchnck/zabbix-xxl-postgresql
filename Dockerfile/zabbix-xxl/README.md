@@ -20,12 +20,14 @@ If you like or use this project, please provide feedback to author - Star it ★
 zabbix-xxl (Zabbix 3.0/3.2) [![Deploy to Docker Cloud](https://files.cloud.docker.com/images/deploy-to-dockercloud.svg)](https://cloud.docker.com/stack/deploy/?repo=https://github.com/monitoringartist/zabbix-xxl/tree/master/Dockerfile/zabbix-xxl/) [![](https://badge.imagelayers.io/monitoringartist/zabbix-xxl:latest.svg)](https://imagelayers.io/?images=monitoringartist/zabbix-xxl:latest)
 =======================
 
-Compiled Zabbix (server, proxy, agent, java gateway, snmpd daemon) with almost all features (MySQL support, Java, SNMP, Curl, Ipmi, SSH, fping) and Zabbix web UI based on CentOS 7, Supervisor, Nginx, PHP. Image requires external MySQL/MariDB database (you can run MySQL/MariaDB as a Docker container). Integated XXL extensions: Searcher, Grapher, Zapix, template auto import, API command/script execution (some extensions must be explicitly enabled - see env variables section).
+Compiled Zabbix (server, proxy, agent, java gateway, snmpd daemon) with almost all features (MySQL support, Java, SNMP, Curl, Ipmi, SSH, fping) and Zabbix web UI based on CentOS 7, Supervisor, Nginx, PHP. Image requires external MySQL/MariDB/Postgresql database (you can run MySQL/MariaDB/Postgresql as a Docker container). Integated XXL extensions: Searcher, Grapher, Zapix, template auto import, API command/script execution (some extensions must be explicitly enabled - see env variables section).
 
 ![Zabbix XXL Zabbix searcher](https://raw.githubusercontent.com/monitoringartist/zabbix-xxl/master/doc/zabbix-3.0-xxl-zabbix-searcher.png)
 ![Zabbix XXL Zapix](https://raw.githubusercontent.com/monitoringartist/zabbix-xxl/master/doc/zabbix-3.0-xxl-zapix.png)
 ![Zabbix XXL Grapher](https://raw.githubusercontent.com/monitoringartist/zabbix-xxl/master/doc/zabbix-3.0-xxl-grapher.png)
 ![Zabbix XXL Update Checker](https://raw.githubusercontent.com/monitoringartist/zabbix-xxl/master/doc/zabbix-xxl-updatechecker.png)
+
+
 
 #### Standard Dockerized Zabbix deployment
 
@@ -44,7 +46,7 @@ docker run \
     --env="MARIADB_PASS=my_password" \
     monitoringartist/zabbix-db-mariadb
 
-# start Zabbix linked to started DB
+# start Zabbix linked to started DB (if you want to use postgresql DB specify it in env variable $DB_engine=postgresql)
 docker run \
     -d \
     --name zabbix \
@@ -63,12 +65,12 @@ docker run \
 Examples of admin tasks:
 
 ```
-# Backup of DB Zabbix - configuration data only, no item history/trends
+# Backup of DB Zabbix - configuration data only, no item history/trends (not yet realised in postgresql ver)
 docker exec \
     -ti zabbix-db \
     /zabbix-backup/zabbix-mariadb-dump -u zabbix -p my_password -o /backups
 
-# Full backup of Zabbix DB
+# Full backup of Zabbix DB (not yet realised in postgresql ver)
 docker exec \
     -ti zabbix-db \
     bash -c "\
@@ -76,9 +78,9 @@ docker exec \
     bzip2 -cq9 > /backups/zabbix_db_dump_$(date +%Y-%m-%d-%H.%M.%S).sql.bz2"
 
 # Restore Zabbix DB
-# remove zabbix server container
+# remove zabbix server container (not yet realised in postgresql ver) 
 docker rm -f zabbix
-# restore data from dump (all current data will be dropped!!!)
+# restore data from dump (all current data will be dropped!!!)(not yet realised in postgresql ver)
 docker exec -i zabbix-db sh -c 'bunzip2 -dc /backups/zabbix_db_dump_2016-05-25-02.57.46.sql.bz2 | mysql -uzabbix -p --password=my_password zabbix'
 # run zabbix server again
 docker run ...
@@ -93,7 +95,8 @@ docker-compose up -d
 ### Zabbix database as Docker container
 To be able to connect to database we would need one to be running first.
 The easiest way to do that is to use another docker image. For this purpose you
-can use [zabbix/zabbix-db-mariadb](https://registry.hub.docker.com/u/monitoringartist/zabbix-db-mariadb) image as database.
+can use [zabbix/zabbix-db-mariadb](https://registry.hub.docker.com/u/monitoringartist/zabbix-db-mariadb) image as database or
+[hasufell/gentoo-postgresql](https://hub.docker.com/r/hasufell/gentoo-postgresql)
 
 For more information about monitoringartist/zabbix-db-mariadb see
 [README of zabbix-db-mariadb](https://github.com/monitoringartist/zabbix-xxl/tree/master/Dockerfile/zabbix-db-mariadb).
@@ -144,6 +147,7 @@ Default container variables or default Zabbix are used:
 | PHP_max_input_time | 300 |
 | PHP_memory_limit | 128M |
 | PHP_error_reporting | E_ALL |
+| DB_engine | mysql |
 | ZS_LogType | console  |
 | ZS_PidFile | /var/run/zabbix_server.pid  |
 | ZS_User | zabbix |
@@ -188,8 +192,8 @@ ZS_LoadModule_2=module2.so
 Note: Japanese users might want to set env. variable `ZBX_GRAPH_FONT_NAME=ipagp` to support japanese font in graphs.
 
 #### Configuration from volume
-Full config files can be also used. Environment configs will be overridden by
-values from config files in this case. You need only to add */etc/custom-config/*
+Full config files can be also used. Environment configs have higher priority then values from config files in this case. That way lets posible an external links with using custom config files together
+You need only to add */etc/custom-config/*
  volume:
 
 ```
@@ -238,8 +242,25 @@ Example:
 		--env="ZS_DBHost=zabbix.db" \
 		--env="ZS_DBUser=zabbix" \
 		--env="ZS_DBPassword=my_password" \
-		monitoringartist/zabbix-xxl:latest
+        	luchnck/zabbix-xxl-postgresql:latest
 
+or:
+
+	docker run \
+        	-d \
+        	--name zabbix-app \
+        	-p 80:80 \
+        	-p 10051:10051 \
+        	-v /etc/localtime:/etc/localtime:ro \
+        	--link zabbix-db:zabbix.db \
+        	--env="XXL_api=false" \
+        	--env="DB_engine=postgresql" \
+        	--env="ZS_DBName=zabbix" \
+         	--env="ZS_DBHost=zabbix.db" \
+        	--env="ZS_DBUser=postgres" \
+        	--env="ZS_DBPassword=postgres" \
+        	--env="ZS_DBPort=5432" \
+        	luchnck/zabbix-xxl-postgresql:latest
 #### Access to Zabbix web interface
 To log in into Zabbix web interface for the first time use credentials
 `Admin:zabbix`.

@@ -1,4 +1,11 @@
 #!/bin/sh
+ZABBIX_SERVER_BIN=zabbix_server_mysql
+if [ $DB_engine=postgresql ] 
+	then  
+	ZABBIX_SERVER_BIN=zabbix_server_postgresql
+fi
+
+export ZABBIX_SERVER_BIN=$ZABBIX_SERVER_BIN
 
 set -eu
 export TERM=xterm
@@ -22,23 +29,61 @@ warning() {
 error() {
   echo "${bold}${red}[ERROR `date +'%T'`]${reset} ${red}$@${reset}";
 }
+
 create_db() {
-  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -e "CREATE DATABASE IF NOT EXISTS ${ZS_DBName} CHARACTER SET utf8;"
-  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -e "GRANT ALL ON ${ZS_DBName}.* TO '${ZS_DBUser}'@'%' identified by '${ZS_DBPassword}';"
-  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -e "flush privileges;"
+  case $DB_engine in
+  	postgresql)
+	  psql -d "postgresql://${ZS_DBUser}:${ZS_DBPassword}@${ZS_DBHost}:${ZS_DBPort}" -c "create database ${ZS_DBName};" 	
+	;;
+	
+	*) 
+	  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -e "CREATE DATABASE IF NOT EXISTS ${ZS_DBName} CHARACTER SET utf8;"
+ 	  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -e "GRANT ALL ON ${ZS_DBName}.* TO '${ZS_DBUser}'@'%' identified by '${ZS_DBPassword}';"
+  	  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -e "flush privileges;"
+	;;
+  esac
 }
+
 import_zabbix_db() {
-  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -D ${ZS_DBName} < ${ZABBIX_SQL_DIR}/schema.sql
-  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -D ${ZS_DBName} < ${ZABBIX_SQL_DIR}/images.sql
-  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -D ${ZS_DBName} < ${ZABBIX_SQL_DIR}/data.sql
+  case $DB_engine in
+  	postgresql)
+ 	  psql -d "postgresql://${ZS_DBUser}:${ZS_DBPassword}@${ZS_DBHost}:${ZS_DBPort}/${ZS_DBName}" < ${ZABBIX_SQL_DIR}/schema.sql
+	  psql -d "postgresql://${ZS_DBUser}:${ZS_DBPassword}@${ZS_DBHost}:${ZS_DBPort}/${ZS_DBName}" < ${ZABBIX_SQL_DIR}/images.sql
+	  psql -d "postgresql://${ZS_DBUser}:${ZS_DBPassword}@${ZS_DBHost}:${ZS_DBPort}/${ZS_DBName}" < ${ZABBIX_SQL_DIR}/data.sql
+	;;
+
+	*)
+	  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -D ${ZS_DBName} < ${ZABBIX_SQL_DIR}/schema.sql
+	  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -D ${ZS_DBName} < ${ZABBIX_SQL_DIR}/images.sql
+	  mysql -u ${ZS_DBUser} -p${ZS_DBPassword} -h ${ZS_DBHost} -P ${ZS_DBPort} -D ${ZS_DBName} < ${ZABBIX_SQL_DIR}/data.sql
+	;;
+  esac
 }
+
 create_proxy_db() {
-  mysql -u ${ZP_DBUser} -p${ZP_DBPassword} -h ${ZP_DBHost} -P ${ZP_DBPort} -e "CREATE DATABASE IF NOT EXISTS ${ZP_DBName} CHARACTER SET utf8;"
-  mysql -u ${ZP_DBUser} -p${ZP_DBPassword} -h ${ZP_DBHost} -P ${ZP_DBPort} -e "GRANT ALL ON ${ZP_DBName}.* TO '${ZP_DBUser}'@'%' identified by '${ZP_DBPassword}';"
-  mysql -u ${ZP_DBUser} -p${ZP_DBPassword} -h ${ZP_DBHost} -P ${ZP_DBPort} -e "flush privileges;"
+   case $DB_engine in
+  	postgresql)
+	  psql -d "postgresql://${ZP_DBUser}:${ZP_DBPassword}@${ZP_DBHost}:${ZP_DBPort}" -c "create database ${ZP_DBName};" 	
+	;;
+	
+	*) 
+	  mysql -u ${ZP_DBUser} -p${ZP_DBPassword} -h ${ZP_DBHost} -P ${ZP_DBPort} -e "CREATE DATABASE IF NOT EXISTS ${ZP_DBName} CHARACTER SET utf8;"
+ 	  mysql -u ${ZP_DBUser} -p${ZP_DBPassword} -h ${ZP_DBHost} -P ${ZP_DBPort} -e "GRANT ALL ON ${ZP_DBName}.* TO '${ZP_DBUser}'@'%' identified by '${ZP_DBPassword}';"
+  	  mysql -u ${ZP_DBUser} -p${ZP_DBPassword} -h ${ZP_DBHost} -P ${ZP_DBPort} -e "flush privileges;"
+	;;
+  esac
 }
+
 import_zabbix_proxy_db() {
-  mysql -u ${ZP_DBUser} -p${ZP_DBPassword} -h ${ZP_DBHost} -P ${ZP_DBPort} -D ${ZP_DBName} < ${ZABBIX_SQL_DIR}/schema.sql
+  case $DB_engine in
+  	postgresql)
+	  psql -d "postgresql://${ZP_DBUser}:${ZP_DBPassword}@${ZP_DBHost}:${ZP_DBPort}/${ZP_DBName}" < ${ZABBIX_SQL_DIR}/schema.sql
+	;;
+	
+	*)
+  	  mysql -u ${ZP_DBUser} -p${ZP_DBPassword} -h ${ZP_DBHost} -P ${ZP_DBPort} -D ${ZP_DBName} < ${ZABBIX_SQL_DIR}/schema.sql
+	;;
+  esac
 }
 logging() {
   mkdir -p /var/log/zabbix
@@ -63,13 +108,25 @@ fix_permissions() {
 }
 update_config() {
   # ^ZS_: /usr/local/etc/zabbix_server.conf
-  > /usr/local/etc/zabbix_server.conf
+  if [ -f /etc/custom-config/php-zabbix.ini ]; then
+    cp -f /etc/custom-config/php-zabbix.ini /etc/php.d/zz-zabbix.ini
+  fi
+ 
+  if [ -f /etc/custom-config/zabbix_server.conf ]; then
+    cp -f /etc/custom-config/zabbix_server.conf /usr/local/etc/zabbix_server.conf
+  else
+    touch /usr/local/etc/zabbix_server.conf
+  fi
+  
   for i in $( printenv | grep ^ZS_ | grep -v '^ZS_enabled' | awk -F'=' '{print $1}' | sort -rn ); do
     reg=$(echo ${i} | sed 's|^ZS_||' | sed -E "s/_[0-9]+$//")
     val=$(echo ${!i})
     echo "${reg}=${val}" >> /usr/local/etc/zabbix_server.conf
     sed -i "s#ZS_${reg}#${val}#g" /usr/local/src/zabbix/frontends/php/conf/zabbix.conf.php
   done
+
+  # fix multidatabase support on web interface
+  [ $DB_engine=postgresql ] && sed -i "s/\$DB\['TYPE'\].*$/\$DB\['TYPE'\]\t= 'POSTGRESQL';/" /usr/local/src/zabbix/frontends/php/conf/zabbix.conf.php
 
   # ^ZA_: /usr/local/etc/zabbix_agentd.conf
   export ZA_Hostname_e=$(echo ${ZA_Hostname} | sed -e 's/ /\\\ /g')
@@ -104,16 +161,12 @@ update_config() {
     sed -i "/ZBX_GRAPH_FONT_NAME/c\define('ZBX_GRAPH_FONT_NAME','ipagp');" /usr/local/src/zabbix/frontends/php/include/defines.inc.php
   fi
 
-  if [ -f /etc/custom-config/php-zabbix.ini ]; then
-    cp -f /etc/custom-config/php-zabbix.ini /etc/php.d/zz-zabbix.ini
-  fi
-  if [ -f /etc/custom-config/zabbix_server.conf ]; then
-    cp -f /etc/custom-config/zabbix_server.conf /usr/local/etc/zabbix_server.conf
-  fi
 }
 ####################### End of default settings #######################
 # Zabbix default sql files
 ZABBIX_SQL_DIR="/usr/local/src/zabbix/database/mysql"
+[ $DB_engine=postgresql ] && ZABBIX_SQL_DIR="/usr/local/src/zabbix/database/postgresql"
+
 # load DB config from custom config file if exist
 if [ -f /etc/custom-config/zabbix_server.conf ]; then
   FZS_DBPassword=$(grep ^DBPassword= /etc/custom-config/zabbix_server.conf | awk -F= '{print $2}')
@@ -191,11 +244,11 @@ if $ZS_enabled; then
                 log "Checking if database exists or SQL import is required"
                 if ! psql -d "postgresql://${ZS_DBUser}:${ZS_DBPassword}@${ZS_DBHost}:${ZS_DBPort}" -c "\c ${ZS_DBName};" &>/dev/null
                         then
-                                warning "Zabbix database doesn't exist. And init_db not implemented yet, please create db yourself"
-#                               log `create_db`
-#                               log "Database and user created, importing default SQL"
-#                               log `import_zabbix_db`
-#                               log "Import finished, starting"
+                                warning "Zabbix database doesn't exist. Creating DB"
+                                log `create_db`
+                                log "Database and user created, importing default SQL"
+                                log `import_zabbix_db`
+                                log "Import finished, starting"
                         else
                                 log "Zabbix database exists, starting server"
                 fi
@@ -307,6 +360,6 @@ if ! $SNMPTRAP_enabled; then
 fi
 
 # Zabbix version detection
-export ZABBIX_VERSION=$(zabbix_server -V | grep Zabbix | awk '{print $3}')
+export ZABBIX_VERSION=$($ZABBIX_SERVER_BIN -V | grep Zabbix | awk '{print $3}')
 
 log "Starting Zabbix version $ZABBIX_VERSION"

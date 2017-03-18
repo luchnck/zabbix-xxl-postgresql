@@ -39,6 +39,10 @@ interactive() {
 	    /bin/bash
 };
 
+<<<<<<< HEAD
+ 
+if $(docker ps -a | grep "zabbix ")
+=======
 usage() {
 	echo " usage is \'./start-srv-container TAG mode\'"
 	echo 'TAG - docker image tag (default latest)'
@@ -52,6 +56,7 @@ if [ -n $1 ]
 fi
 
 if docker ps -a | grep "zabbix-app"
+>>>>>>> multibase-compiled
 	then 
 		docker rm -f zabbix-app
 		echo "container removed forcedly"
